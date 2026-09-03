@@ -1,0 +1,2 @@
+"""AdaptiveMetric RAG application."""
+

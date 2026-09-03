@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0b1020">
+  <title>AdaptiveMetric RAG</title>
+  <script>document.documentElement.dataset.theme=localStorage.getItem('adaptive-theme')||'dark'</script>
+  <link rel="stylesheet" href="/assets/styles.css">
+  <link rel="stylesheet" href="/assets/improvements.css">
+  <link rel="stylesheet" href="/assets/rich-theme.css">
+</head>
+<body>
+  <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand"><div class="brand-mark">A</div><div><strong>AdaptiveMetric</strong><span>Intelligent retrieval</span></div></div>
+      <button class="new-chat" id="newChat"><span>＋</span> گفتگوی جدید</button>
+      <nav>
+        <button class="nav-item active" data-view="chat"><span>◫</span> گفتگو</button>
+        <button class="nav-item" data-view="library"><span>▱</span> منابع <em id="docCount">0</em></button>
+        <button class="nav-item" data-view="about"><span>◎</span> درباره ما</button>
+      </nav>
+      <div class="history-title"><span>گفتگوهای اخیر</span><div><button id="clearHistory" title="حذف همه گفتگوها">پاک‌کردن همه</button><button id="refreshHistory" title="بروزرسانی">↻</button></div></div>
+      <div id="history" class="history"></div>
+      <div class="sidebar-footer">
+        <div class="status"><i></i><span>سیستم آماده است</span></div>
+        <button class="settings-link" id="openSettings">⚙ تنظیمات</button>
+      </div>
+    </aside>
+
+    <main>
+      <header class="topbar">
+        <button class="icon-button menu-button" id="menuButton">☰</button>
+        <div><h1 id="pageTitle">گفتگو با دانش شما</h1><p id="pageSubtitle">بازیابی تطبیقی، پاسخ‌های مستند</p></div>
+        <div class="top-actions"><span class="provider-pill" id="providerPill">Local · Extractive</span><button class="icon-button" id="exportCurrent" title="خروجی JSON گفتگوی فعلی">⇩</button><button class="icon-button" id="themeToggle" title="حالت روشن یا تیره">☀</button><button class="icon-button" id="headerSettings" title="Settings">⚙</button></div>
+      </header>
+
+      <section class="view active" id="chatView" style="flex-direction:column">
+        <div class="chat-scroll" id="chatScroll">
+          <div class="welcome" id="welcome">
+            <div class="hero-orb"><span>✦</span></div>
+            <div class="eyebrow">ADAPTIVE RETRIEVAL ENGINE</div>
+            <h2>هر سؤال، معیار شباهت خودش را دارد.</h2>
+            <p>اسناد را اضافه کنید و سؤال بپرسید. سیستم بر اساس نوع پرسش، وزن semantic، entity، عدد و زمان را تغییر می‌دهد.</p>
+            <div class="suggestions">
+              <button>این اسناد درباره چه موضوعی هستند؟</button>
+              <button>مهم‌ترین تاریخ‌ها را با منبع پیدا کن</button>
+              <button>اعداد و تعهدات اصلی را خلاصه کن</button>
+            </div>
+          </div>
+          <div id="messages" class="messages"></div>
+        </div>
+        <div class="composer-wrap">
+          <form class="composer" id="chatForm">
+            <textarea id="messageInput" rows="1" placeholder="از اسناد خود سؤال کنید…" aria-label="Message"></textarea>
+            <div class="composer-bottom"><button type="button" class="attach" id="quickUpload">＋ افزودن منبع</button><span>Enter برای ارسال</span><button class="send" id="sendButton" aria-label="Send">↑</button></div>
+          </form>
+          <p class="disclaimer">پاسخ‌ها را با منابع اصلی بررسی کنید. AdaptiveMetric در صورت نبود شواهد کافی آن را اعلام می‌کند.</p>
+        </div>
+      </section>
+
+      <section class="view library-view" id="libraryView">
+        <div class="library-header"><div><h2>پایگاه دانش</h2><p>فایل‌ها را اضافه کنید؛ chunking و index به‌صورت خودکار انجام می‌شود.</p></div><button class="primary" id="uploadButton">＋ افزودن سند</button></div>
+        <div class="dropzone" id="dropzone"><div class="upload-icon">⇧</div><strong>فایل‌ها را اینجا رها کنید</strong><span>PDF, DOCX, TXT, MD, CSV, JSON, HTML · حداکثر ۳۰ مگابایت</span></div>
+        <input type="file" id="fileInput" hidden accept=".pdf,.docx,.txt,.md,.csv,.json,.html,.htm" multiple>
+        <div class="stat-grid"><article><span>اسناد</span><strong id="totalDocs">0</strong></article><article><span>Chunkها</span><strong id="totalChunks">0</strong></article><article class="embedding-stat"><span>مدل Embedding فعال</span><strong id="embeddingLabel">در حال دریافت…</strong><small id="embeddingDimensions"></small></article></div>
+        <div class="document-panel"><div class="panel-head"><h3>اسناد شما</h3><button class="ghost" id="refreshDocs">↻ بروزرسانی</button></div><div id="documentList" class="document-list"></div></div>
+      </section>
+
+      <section class="view about-view" id="aboutView">
+        <div class="about-hero"><div class="about-logo">A</div><span class="eyebrow">ABOUT ADAPTIVE METRIC RAG</span><h2>هر سؤال، هندسه بازیابی خودش را دارد.</h2><p>AdaptiveMetric RAG به‌جای استفاده از یک تعریف ثابت برای شباهت، نوع سؤال را تحلیل می‌کند و ترکیب معیارهای retrieval را متناسب با هدف همان سؤال تغییر می‌دهد.</p><blockquote class="about-thesis">«نوع سؤال را بفهم، بعد تعریف شباهت مناسب همان سؤال را انتخاب کن.»<small>یعنی یک RAG می‌سازیم که فاصله معنایی‌اش ثابت نیست.</small></blockquote></div>
+        <div class="about-grid">
+          <article class="about-card about-wide"><span class="card-index">01 · ایده اصلی</span><h3>چرا Adaptive Retrieval؟</h3><p>در RAG معمولی تمام سؤال‌ها غالباً با cosine similarity یکسان جستجو می‌شوند؛ اما یک سؤال درباره تاریخ قرارداد، یک خطای CUDA و یک پرسش مفهومی به شواهد متفاوتی نیاز دارند. Query Analyzer ابتدا intent را تشخیص می‌دهد و Metric Router وزن شباهت برداری، تطابق واژه‌ها، موجودیت‌ها، اعداد، تاریخ و metadata را تعیین می‌کند.</p></article>
+          <article class="about-card"><span class="card-index">02 · فرمول</span><h3>Mixture of Metrics</h3><div class="formula" dir="ltr">Score(q,x) = Σ wᵢ(q) · sᵢ(q,x)</div><p>وزن <span dir="ltr">wᵢ</span> به خود Query وابسته است. بنابراین همان مجموعه اسناد برای دو سؤال نزدیک می‌تواند رتبه‌بندی متفاوتی تولید کند.</p></article>
+          <article class="about-card"><span class="card-index">03 · شفافیت</span><h3>Confidence و Citation</h3><p>Confidence کیفیت و پوشش شواهد retrieval را تخمین می‌زند و احتمال صحت قطعی پاسخ نیست. پایین‌بودن آن معمولاً یعنی واژه‌های سؤال در منابع پوشش کمی دارند، نتیجه اول برتری واضحی نسبت به بقیه ندارد، سند دقیق موجود نیست یا embedding فعال ارتباط معنایی را خوب تشخیص نداده است. Citation با مقایسه سؤال و پاسخ نهایی، جمله پشتیبان را در متن chunk مشخص می‌کند.</p></article>
+        </div>
+        <section class="pipeline"><span class="card-index">PIPELINE</span><h3>مسیر یک Query در سیستم</h3><div class="pipeline-flow"><div><b>۱</b><strong>تحلیل سؤال</strong><small>Intent · Entity · Number · Time</small></div><i>←</i><div><b>۲</b><strong>جستجوی ترکیبی</strong><small>Vector + BM25 + Metadata</small></div><i>←</i><div><b>۳</b><strong>امتیاز تطبیقی</strong><small>وزن اختصاصی هر Query</small></div><i>←</i><div><b>۴</b><strong>پاسخ مستند</strong><small>LLM + Citation + Highlight</small></div></div></section>
+        <div class="about-grid">
+          <article class="about-card"><span class="card-index">04 · Embedding</span><h3>بردارسازی قابل تعویض</h3><p>حالت Local با feature hashing چندزبانه و بدون دانلود اجرا می‌شود. برای کیفیت semantic بالاتر می‌توان یک مدل embedding نصب‌شده در Ollama مانند <code>nomic-embed-text</code> یا <code>bge-m3</code> را انتخاب کرد. با تغییر مدل، تمام اسناد خودکار re-index می‌شوند.</p></article>
+          <article class="about-card"><span class="card-index">05 · مدل پاسخ‌گو</span><h3>Provider مستقل</h3><p>Embedding و تولید پاسخ دو تنظیم مستقل‌اند. پاسخ می‌تواند با Ollama، OpenAI-compatible، Gemini یا حالت Local تولید شود، درحالی‌که embedding از Provider دیگری تأمین می‌شود.</p></article>
+        </div>
+        <section class="developer-card"><div><span class="card-index">DESIGNED & DEVELOPED BY</span><h3>Ali Jahani</h3><p>توسعه‌دهنده AdaptiveMetric RAG</p></div><div class="developer-links"><a href="https://jahaniwww.com" target="_blank" rel="noopener">Website <b>jahaniwww.com</b></a><a href="https://t.me/tarfandoonchannel" target="_blank" rel="noopener">Telegram <b>@tarfandoonchannel</b></a><a href="https://github.com/alipyth" target="_blank" rel="noopener">GitHub <b>@alipyth</b></a></div></section>
+      </section>
+    </main>
+  </div>
+
+  <div class="drawer-backdrop" id="sourceBackdrop"></div>
+  <aside class="source-drawer" id="sourceDrawer"><div class="drawer-head"><div><span>متن منبع</span><h3 id="sourceTitle">—</h3></div><button class="icon-button" id="closeSource">×</button></div><div id="sourceMeta" class="source-meta"></div><div class="highlight-legend"><i></i>بخش مرتبط با پاسخ</div><blockquote id="sourceExcerpt"></blockquote><div class="score-box"><span>امتیاز تطبیقی</span><strong id="sourceScore">0%</strong></div></aside>
+
+  <div class="modal-backdrop" id="settingsModal">
+    <section class="modal">
+      <div class="modal-head"><div><span class="eyebrow">CONFIGURATION</span><h2>تنظیمات سیستم</h2></div><button class="icon-button close-settings">×</button></div>
+      <div class="settings-tabs"><button class="active" data-tab="model">مدل پاسخ‌گو</button><button data-tab="retrieval">Retrieval</button><button data-tab="advanced">پیشرفته</button></div>
+      <form id="settingsForm">
+        <div class="settings-pane active" data-pane="model">
+          <label>Provider<select name="provider" id="providerSelect"><option value="local">Local · بدون نیاز به کلید</option><option value="ollama">Ollama</option><option value="openai">OpenAI / Dedicated compatible</option><option value="gemini">Google Gemini</option></select></label>
+          <label>Model<div class="model-picker"><input name="model" id="modelInput" list="ollamaGenerationModels" dir="ltr" placeholder="gpt-5-mini"><button type="button" class="ghost" id="loadGenerationModels">دریافت مدل‌ها</button></div><datalist id="ollamaGenerationModels"></datalist></label>
+          <label>Base URL<input name="base_url" id="baseUrlInput" dir="ltr" placeholder="https://api.openai.com/v1"></label>
+          <label>API Key<div class="secret-input"><input name="api_key" id="apiKeyInput" type="password" dir="ltr" placeholder="بدون تغییر"><button type="button" id="showSecret">نمایش</button></div><small id="keyStatus">کلیدی ذخیره نشده است</small></label>
+          <div class="field-row"><label>Temperature<input name="temperature" type="number" min="0" max="2" step="0.05"></label><label>Max tokens<input name="max_tokens" type="number" min="128" max="8192"></label></div>
+          <button type="button" class="ghost test-provider" id="testProvider">تست اتصال</button>
+        </div>
+        <div class="settings-pane" data-pane="retrieval">
+          <div class="embedding-info"><div class="embedding-info-icon">E</div><div><span>Embedding اسناد</span><strong id="settingsEmbeddingName">هش ویژگی چندزبانه محلی</strong><small id="settingsEmbeddingMeta">Local · 384 dimensions · بدون API Key</small></div></div>
+          <label>Embedding Provider<select name="embedding_provider" id="embeddingProvider"><option value="local">Local · بدون دانلود مدل</option><option value="ollama">Ollama · مدل نصب‌شده شما</option></select></label>
+          <label>Embedding Model<div class="model-picker"><input name="embedding_model" id="embeddingModel" list="ollamaEmbeddingModels" dir="ltr" placeholder="nomic-embed-text:latest"><button type="button" class="ghost" id="loadEmbeddingModels">دریافت مدل‌ها</button></div><datalist id="ollamaEmbeddingModels"></datalist></label>
+          <label id="embeddingBaseUrlLabel">Ollama Base URL<input name="embedding_base_url" id="embeddingBaseUrl" dir="ltr" placeholder="http://host.docker.internal:11434"></label>
+          <div class="notice reindex-notice">تغییر Provider یا مدل، تمام chunkهای موجود را با embedding جدید بازسازی می‌کند. تا پایان ذخیره‌سازی صفحه را نبندید.</div>
+          <div class="field-row"><label>Candidate pool<input name="candidate_count" type="number" min="10" max="500"></label><label>Context chunks<input name="context_count" type="number" min="1" max="15"></label></div>
+          <div class="field-row"><label>Chunk size<input name="chunk_size" type="number" min="250" max="3000"></label><label>Chunk overlap<input name="chunk_overlap" type="number" min="0" max="800"></label></div>
+          <label>آستانه اطمینان برای مراحل تکمیلی<input name="confidence_threshold" type="range" min="0" max="1" step="0.01"><output id="confidenceOutput">0.58</output><small>این مقدار برای تصمیم‌های confidence-aware است و وجود یا نبود پاسخ را تعیین نمی‌کند.</small></label>
+          <label class="toggle-row"><span><strong>Early exit</strong><small>در نتایج قطعی، مراحل سنگین را رد می‌کند.</small></span><input name="enable_early_exit" type="checkbox"></label>
+          <label class="toggle-row"><span><strong>Query expansion</strong><small>در confidence پایین، جستجو را گسترش می‌دهد.</small></span><input name="enable_query_expansion" type="checkbox"></label>
+        </div>
+        <div class="settings-pane" data-pane="advanced"><label>System prompt<textarea name="system_prompt" rows="7" dir="ltr"></textarea></label><div class="notice">کلیدهای API در SQLite سمت سرور ذخیره می‌شوند و هیچ‌وقت به مرورگر بازگردانده نمی‌شوند. برای استقرار عمومی از secret manager یا متغیر محیطی استفاده کنید.</div></div>
+        <div class="modal-actions"><button type="button" class="ghost close-settings">انصراف</button><button class="primary" type="submit">ذخیره تنظیمات</button></div>
+      </form>
+    </section>
+  </div>
+  <div class="toast" id="toast"></div>
+  <script src="/assets/app.js" defer></script>
+</body>
+</html>
