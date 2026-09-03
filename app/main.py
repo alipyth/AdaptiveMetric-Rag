@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 import time
@@ -16,10 +17,13 @@ from fastapi.staticfiles import StaticFiles
 
 from . import database
 from .documents import ALLOWED, ingest
-from .embeddings import create_embeddings, embedding_info, reindex_all
+from .embeddings import create_query_embedding, embedding_info, reindex_all
 from .models import AppSettings, ChatRequest, ChatResponse, Citation, SettingsView
-from .providers import generate
+from .providers import generate, local_answer
 from .retrieval import best_evidence, retrieve
+
+
+logger = logging.getLogger("adaptive_metric_rag")
 
 
 def refresh_saved_citation_highlights() -> None:
@@ -260,14 +264,15 @@ async def chat(request: ChatRequest):
     started = time.perf_counter()
     settings = load_settings()
     try:
-        query_vector = (await create_embeddings(settings, [request.message]))[0]
+        query_vector = await create_query_embedding(settings, request.message)
     except (httpx.HTTPError, KeyError, ValueError) as exc:
         raise HTTPException(502, f"Embedding provider error: {exc}") from exc
     result = retrieve(request.message, settings.candidate_count, settings.context_count, request.filters, query_vector)
     # Evidence existence is based on retrieval signals, not the user-facing
     # confidence preference. Raising that preference must never hide known facts.
     top_features = result.chunks[0]["features"] if result.chunks else {}
-    semantic_intent = result.analysis.intent in {"conceptual", "causal"}
+    browse_intent = result.analysis.intent == "document_browse"
+    semantic_intent = result.analysis.intent in {"conceptual", "causal", "document_browse"}
     dense_floor = .24 if semantic_intent else .30
     confidence_floor = .08 if semantic_intent else .24
     substantive_match = bool(top_features) and (
@@ -277,7 +282,7 @@ async def chat(request: ChatRequest):
         or (result.analysis.intent == "numeric_fact" and top_features.get("numeric", 0) >= .80)
         or (result.analysis.intent == "temporal_fact" and top_features.get("temporal", 0) >= .80)
     )
-    evidence_found = bool(result.chunks) and result.confidence >= confidence_floor and substantive_match
+    evidence_found = bool(result.chunks) and (browse_intent or (result.confidence >= confidence_floor and substantive_match))
     grounded_chunks: list[dict] = []
     if evidence_found:
         top_score = result.chunks[0]["score"]
@@ -287,8 +292,13 @@ async def chat(request: ChatRequest):
     if evidence_found:
         try:
             answer = await generate(settings, request.message, grounded_chunks, result.analysis.language)
-        except (httpx.HTTPError, KeyError, ValueError) as exc:
-            raise HTTPException(502, f"Generation provider error: {exc}") from exc
+        except (httpx.HTTPError, KeyError, ValueError) as first_exc:
+            logger.warning("Generation failed; retrying with reduced context: %r", first_exc, exc_info=True)
+            try:
+                answer = await generate(settings, request.message, grounded_chunks[:2], result.analysis.language)
+            except (httpx.HTTPError, KeyError, ValueError) as retry_exc:
+                logger.error("Generation retry failed; using grounded extractive fallback: %r", retry_exc, exc_info=True)
+                answer = local_answer(request.message, grounded_chunks, result.analysis.language)
     else:
         answer = no_evidence_answer(result.analysis.language)
     if evidence_found and answer_abstained(answer):

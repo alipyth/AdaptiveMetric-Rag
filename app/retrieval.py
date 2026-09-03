@@ -20,6 +20,51 @@ DIMENSION = 384
 PERSIAN_STOP = {"از", "به", "در", "با", "برای", "که", "این", "آن", "را", "و", "یا", "چه", "چرا", "چگونه", "است", "شد", "می"}
 ENGLISH_STOP = {"the", "a", "an", "of", "to", "in", "for", "is", "was", "and", "or", "what", "why", "how", "does"}
 
+KEYWORD_EXPANSIONS = {
+    "کتاب": ["book", "title"], "متن": ["text", "passage", "content"],
+    "موضوع": ["topic", "subject", "about"], "خلاصه": ["summary", "overview"],
+    "نویسنده": ["author", "written"], "ناشر": ["publisher", "publication"],
+    "انتشارات": ["publisher", "publication"], "سال": ["year", "published"],
+    "وبسایت": ["website", "web", "url"], "وب‌سایت": ["website", "web", "url"],
+    "قرارداد": ["contract", "agreement"], "مبلغ": ["amount", "price", "cost"],
+    "تاریخ": ["date", "year", "time"], "پایان": ["end", "expiry", "expiration"],
+    "خلاق": ["creative", "creativity", "innovation", "imagination"],
+    "خلاقیت": ["creativity", "creative thinking", "innovation"],
+    "چطور": ["how", "ways", "methods"], "چگونه": ["how", "ways", "methods"],
+    "باشیم": ["become", "being"],
+}
+
+
+def normalize_query(query: str) -> str:
+    normalized = query.strip().lower().replace("ي", "ی").replace("ك", "ک")
+    normalized = re.sub(r"^(?:خوب|خب|خب،|خوب،|لطفاً|لطفا|ببین|راستی)\s+", "", normalized)
+    normalized = normalized.replace("چطوری", "چطور").replace("چه جوری", "چطور").replace("چجوری", "چطور")
+    return re.sub(r"\s+", " ", normalized).strip()
+
+
+def expanded_keywords(query: str) -> list[str]:
+    """Extract multiple distinct keywords and add compact cross-language variants."""
+    query = normalize_query(query)
+    keywords = list(dict.fromkeys(tokenize(query)))
+    lowered = query.lower()
+    for source, expansions in KEYWORD_EXPANSIONS.items():
+        if source in lowered:
+            keywords.extend(expansions)
+    quoted = re.findall(r'["«](.*?)["»]', query)
+    keywords.extend(item.strip().lower() for item in quoted if item.strip())
+    return list(dict.fromkeys(keywords))[:24]
+
+
+def query_variants(query: str) -> list[str]:
+    query = normalize_query(query)
+    keywords = expanded_keywords(query)
+    translated = [term for term in keywords if term.isascii()]
+    variants = [query.strip()]
+    if translated:
+        variants.append(" ".join(translated))
+        variants.append(query.strip() + " | " + " ".join(translated))
+    return list(dict.fromkeys(variant for variant in variants if variant))
+
 
 def tokenize(text: str) -> list[str]:
     normalized = text.lower().replace("ي", "ی").replace("ك", "ک")
@@ -71,6 +116,7 @@ def cosine(a: list[float], b: list[float]) -> float:
 
 
 def analyze_query(query: str) -> QueryAnalysis:
+    query = normalize_query(query)
     q = query.lower()
     language = "fa" if re.search(r"[\u0600-\u06FF]", query) else "en"
     numbers = NUMBER_RE.findall(query)
@@ -79,33 +125,40 @@ def analyze_query(query: str) -> QueryAnalysis:
     tokens = tokenize(query)
     caps = re.findall(r"\b[A-Z][A-Za-z0-9_.-]+\b", query)
     entities = list(dict.fromkeys(quoted + caps + [t for t in tokens if any(c.isdigit() for c in t)]))[:8]
+    keywords = expanded_keywords(query)
 
     temporal_words = ("when", "date", "expire", "released", "زمان", "تاریخ", "پایان", "منقضی", "منتشر")
     causal_words = ("why", "cause", "reason", "چرا", "علت", "دلیل")
     code_words = ("error", "exception", "stack", "cuda", "api", "function", "خطا", "کد")
     numeric_words = ("how much", "price", "dose", "count", "قیمت", "دوز", "مقدار", "چقدر")
     conceptual_words = ("how does", "explain", "concept", "topic", "subject", "summary",
-                        "چگونه", "مفهوم", "توضیح", "موضوع", "درباره", "خلاصه", "چی هست", "چیه")
+                        "چگونه", "چطور", "مفهوم", "توضیح", "موضوع", "درباره", "خلاصه", "چی هست", "چیه", "خلاق")
+    browse_words = ("from the book", "book passage", "from the text", "quote from", "متن کتاب",
+                    "از متن", "از کتاب", "بخشی از", "برام بنویس", "برایم بنویس")
 
-    if temporal or any(w in q for w in temporal_words):
+    if any(w in q for w in browse_words):
+        intent = "document_browse"
+        weights = {"dense": .52, "bm25": .08, "keyword": .18, "entity": .03, "numeric": .02, "temporal": .02, "metadata": .15}
+    elif temporal or any(w in q for w in temporal_words):
         intent = "temporal_fact"
-        weights = {"dense": .18, "bm25": .12, "entity": .24, "numeric": .08, "temporal": .31, "metadata": .07}
+        weights = {"dense": .16, "bm25": .10, "keyword": .10, "entity": .22, "numeric": .07, "temporal": .28, "metadata": .07}
     elif numbers or any(w in q for w in numeric_words):
         intent = "numeric_fact"
-        weights = {"dense": .17, "bm25": .13, "entity": .24, "numeric": .31, "temporal": .07, "metadata": .08}
+        weights = {"dense": .15, "bm25": .11, "keyword": .10, "entity": .22, "numeric": .28, "temporal": .06, "metadata": .08}
     elif any(w in q for w in causal_words):
         intent = "causal"
-        weights = {"dense": .46, "bm25": .18, "entity": .17, "numeric": .04, "temporal": .06, "metadata": .09}
+        weights = {"dense": .41, "bm25": .15, "keyword": .12, "entity": .15, "numeric": .03, "temporal": .05, "metadata": .09}
     elif any(w in q for w in code_words):
         intent = "technical_code"
-        weights = {"dense": .30, "bm25": .31, "entity": .23, "numeric": .06, "temporal": .03, "metadata": .07}
+        weights = {"dense": .27, "bm25": .27, "keyword": .11, "entity": .21, "numeric": .05, "temporal": .02, "metadata": .07}
     elif any(w in q for w in conceptual_words):
         intent = "conceptual"
-        weights = {"dense": .58, "bm25": .16, "entity": .08, "numeric": .03, "temporal": .03, "metadata": .12}
+        weights = {"dense": .52, "bm25": .13, "keyword": .12, "entity": .07, "numeric": .02, "temporal": .02, "metadata": .12}
     else:
         intent = "exact_fact"
-        weights = {"dense": .28, "bm25": .22, "entity": .26, "numeric": .08, "temporal": .07, "metadata": .09}
-    return QueryAnalysis(intent=intent, language=language, weights=weights, entities=entities, numbers=numbers, temporal_terms=temporal)
+        weights = {"dense": .25, "bm25": .19, "keyword": .11, "entity": .23, "numeric": .07, "temporal": .06, "metadata": .09}
+    return QueryAnalysis(intent=intent, language=language, weights=weights, entities=entities, numbers=numbers,
+                         temporal_terms=temporal, keywords=keywords)
 
 
 def _bm25(query_tokens: list[str], doc_tokens: list[str], avg_len: float, doc_freq: Counter[str], total: int) -> float:
@@ -142,6 +195,16 @@ def _temporal_signal(terms: list[str], content: str, temporal_intent: bool) -> f
     return 1.0 if temporal_intent and DATE_RE.search(content) else 0.0
 
 
+def _multi_keyword_signal(keywords: list[str], content: str) -> float:
+    if not keywords:
+        return 0.0
+    lowered = content.lower()
+    matches = sum(1 for keyword in set(keywords) if keyword.lower() in lowered)
+    # Requiring up to four distinct terms rewards true multi-keyword matches
+    # without penalizing concise queries against a different source language.
+    return min(1.0, matches / min(4, len(set(keywords))))
+
+
 @dataclass
 class RetrievalResult:
     chunks: list[dict[str, Any]]
@@ -161,7 +224,7 @@ def retrieve(query: str, candidate_count: int = 100, context_count: int = 5, fil
     if not all_chunks:
         return RetrievalResult([], analysis, 0.0, False)
 
-    qvec, qtokens = query_vector or embed(query), tokenize(query)
+    qvec, qtokens = query_vector or embed(query), analysis.keywords
     prepared: list[tuple[dict[str, Any], list[str], float]] = []
     for chunk in all_chunks:
         vector = json.loads(chunk["embedding"])
@@ -193,6 +256,7 @@ def retrieve(query: str, candidate_count: int = 100, context_count: int = 5, fil
         features = {
             "dense": dense_score,
             "bm25": bm / bm_max,
+            "keyword": _multi_keyword_signal(analysis.keywords, content + " " + metadata_text),
             "entity": _overlap(analysis.entities, content),
             "numeric": _numeric_signal(analysis.numbers, content, analysis.intent == "numeric_fact"),
             "temporal": _temporal_signal(analysis.temporal_terms, content, analysis.intent == "temporal_fact"),

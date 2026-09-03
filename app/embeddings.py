@@ -6,7 +6,7 @@ import httpx
 
 from . import database
 from .models import AppSettings
-from .retrieval import DIMENSION, embed as local_embed
+from .retrieval import DIMENSION, embed as local_embed, query_variants
 
 
 def _normalize(vector: list[float]) -> list[float]:
@@ -62,12 +62,37 @@ async def create_embeddings(settings: AppSettings, texts: list[str]) -> list[lis
     return vectors
 
 
+async def create_query_embedding(settings: AppSettings, query: str) -> list[float]:
+    """Blend the original query with multilingual keyword-expanded variants."""
+    variants = query_variants(query)
+    vectors = await create_embeddings(settings, variants)
+    if len(vectors) == 1:
+        return vectors[0]
+    weights = [.55] + [(.45 / (len(vectors) - 1))] * (len(vectors) - 1)
+    blended = [sum(weight * vector[index] for weight, vector in zip(weights, vectors)) for index in range(len(vectors[0]))]
+    return _normalize(blended)
+
+
+def document_embedding_text(name: str, section: str | None, content: str) -> str:
+    parts = [f"Document title: {name}"]
+    if section:
+        parts.append(f"Section: {section}")
+    parts.append(f"Content: {content}")
+    return "\n".join(parts)
+
+
 async def reindex_all(settings: AppSettings) -> dict:
-    chunks = database.rows("SELECT id,content FROM chunks ORDER BY document_id,position")
+    chunks = database.rows(
+        "SELECT c.id,c.content,c.section,d.name document_name FROM chunks c "
+        "JOIN documents d ON d.id=c.document_id ORDER BY c.document_id,c.position"
+    )
     if not chunks:
         probe = await create_embeddings(settings, ["embedding readiness check"])
         return {"chunks": 0, "dimensions": len(probe[0]) if probe else None}
-    vectors = await create_embeddings(settings, [chunk["content"] for chunk in chunks])
+    vectors = await create_embeddings(
+        settings,
+        [document_embedding_text(chunk["document_name"], chunk.get("section"), chunk["content"]) for chunk in chunks],
+    )
     with database.connect() as db:
         db.executemany(
             "UPDATE chunks SET embedding=? WHERE id=?",

@@ -11,9 +11,11 @@
 .retrieval-details .answer-meta p{width:100%;margin:3px 0 0;color:#677186;font-size:9px}
 .retrieval-details .answer-meta .confidence-explanation{margin-top:8px;padding-top:8px;border-top:1px dashed #293044;color:#8e98aa;line-height:1.8}
 .metric-pill b{color:#c4cad5;font-weight:600;margin-left:3px}
+.sources-section{width:100%;min-width:0}
 .sources-section summary span{color:#c6ccd7;font-weight:600}.sources-section summary b{display:grid;place-items:center;min-width:22px;height:20px;border-radius:7px;background:#7258ed22;color:#aa98ff}
-.sources-section .source-cards{margin:0;padding:10px;border-top:1px solid var(--line);max-height:94px;overflow-x:auto;overflow-y:hidden}
-.source-card{height:69px;flex:0 0 180px}
+.sources-section .source-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));align-items:stretch;gap:9px;width:100%;margin:0;padding:11px;border-top:1px solid var(--line);max-height:280px;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
+.sources-section .source-card{width:100%;min-width:0;max-width:none;height:auto;min-height:69px;flex:none}
+.sources-section .source-card strong,.sources-section .source-card span{max-width:100%}
 .no-source{color:#717b8d;padding:8px}
 .source-drawer{overflow-y:auto}
 .source-drawer blockquote{white-space:pre-wrap;margin-bottom:25px;max-height:none}
@@ -25,7 +27,8 @@
 .embedding-info-icon{display:grid;place-items:center;flex:0 0 36px;height:36px;border-radius:10px;background:#755ce5;color:white;font:700 14px Manrope}
 .embedding-info span,.embedding-info strong,.embedding-info small{display:block}.embedding-info span{color:#8e82cf;font-size:9px}.embedding-info strong{color:#d9d4f7;font-size:11px;margin:2px 0}.embedding-info small{direction:ltr;text-align:right}
 .history-title>div{display:flex;align-items:center;gap:3px}.history-title #clearHistory{font-size:8px}.history-item{display:flex;align-items:center;gap:2px;min-width:0}.history-item .history-open{flex:1;min-width:0}.history-item .history-delete{flex:0 0 27px;padding:7px;color:#667084;text-align:center}.history-item .history-delete:hover{color:var(--danger);background:#2a1820}
-@media(max-width:800px){.retrieval-details summary{flex-wrap:wrap}.sources-section .source-cards{max-height:88px}.source-drawer{padding-bottom:30px}}
+@media(max-width:800px){.retrieval-details summary{flex-wrap:wrap}.sources-section .source-cards{grid-template-columns:repeat(2,minmax(0,1fr));max-height:250px}.source-drawer{padding-bottom:30px}}
+@media(max-width:560px){.sources-section .source-cards{grid-template-columns:1fr;max-height:235px}.sources-section .source-card{min-height:64px}}
 
 /* Keep the composer fixed while the conversation itself scrolls. */
 main{min-height:0;overflow:hidden}

@@ -7,9 +7,9 @@ function toast(message, error=false){ const el=$('#toast'); el.textContent=messa
 async function api(path, options={}){ const response=await fetch(path,options); const data=await response.json().catch(()=>({})); if(!response.ok) throw new Error(data.detail||'خطایی رخ داد'); return data; }
 function formatBytes(bytes){ if(bytes<1024)return `${bytes} B`; if(bytes<1048576)return `${(bytes/1024).toFixed(1)} KB`; return `${(bytes/1048576).toFixed(1)} MB`; }
 const faNumber = new Intl.NumberFormat('fa-IR');
-const intentLabels = {temporal_fact:'پرسش زمانی',numeric_fact:'پرسش عددی',causal:'پرسش علّی',technical_code:'پرسش فنی یا کد',conceptual:'پرسش مفهومی',exact_fact:'واقعیت دقیق',history:'پاسخ ذخیره‌شده'};
-const metricLabels = {dense:'شباهت برداری',bm25:'تطابق واژه‌ها',entity:'نام و موجودیت',numeric:'عدد و مقدار',temporal:'تاریخ و زمان',metadata:'مشخصات سند'};
-const metricHelp = {dense:'شباهت بردار سؤال و متن با embedding فعال',bm25:'تطابق دقیق کلمات مهم سؤال',entity:'تطابق نام اشخاص، محصولات، شماره‌ها و شناسه‌ها',numeric:'اهمیت اعداد و مقادیر',temporal:'اهمیت تاریخ و عبارت‌های زمانی',metadata:'تطابق نام، نوع و بخش سند'};
+const intentLabels = {temporal_fact:'پرسش زمانی',numeric_fact:'پرسش عددی',causal:'پرسش علّی',technical_code:'پرسش فنی یا کد',conceptual:'پرسش مفهومی',document_browse:'مرور یا استخراج از سند',exact_fact:'واقعیت دقیق',history:'پاسخ ذخیره‌شده'};
+const metricLabels = {dense:'شباهت برداری',bm25:'تطابق واژه‌ها',keyword:'جستجوی چندکلیدواژه‌ای',entity:'نام و موجودیت',numeric:'عدد و مقدار',temporal:'تاریخ و زمان',metadata:'مشخصات سند'};
+const metricHelp = {dense:'ترکیب چند بردار از سؤال اصلی و عبارت‌های گسترش‌یافته',bm25:'تطابق دقیق کلمات مهم سؤال',keyword:'پوشش هم‌زمان چند کلیدواژه فارسی و انگلیسی',entity:'تطابق نام اشخاص، محصولات، شماره‌ها و شناسه‌ها',numeric:'اهمیت اعداد و مقادیر',temporal:'اهمیت تاریخ و عبارت‌های زمانی',metadata:'تطابق نام، نوع و بخش سند'};
 function percent(value){return `${faNumber.format(Math.round((value||0)*100))}٪`}
 function duration(ms){return ms<1000?`${faNumber.format(ms)} میلی‌ثانیه`:`${faNumber.format((ms/1000).toFixed(1))} ثانیه`}
 function applyTheme(theme){document.documentElement.dataset.theme=theme;localStorage.setItem('adaptive-theme',theme);$('#themeToggle').textContent=theme==='light'?'☾':'☀';$('#themeToggle').title=theme==='light'?'فعال‌کردن حالت تیره':'فعال‌کردن حالت روشن'}

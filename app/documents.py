@@ -13,7 +13,7 @@ from docx import Document as DocxDocument
 from pypdf import PdfReader
 
 from . import database
-from .embeddings import create_embeddings
+from .embeddings import create_embeddings, document_embedding_text
 from .models import AppSettings
 from .retrieval import tokenize
 
@@ -77,7 +77,10 @@ async def ingest(filename: str, content_type: str, payload: bytes, chunk_size: i
                  settings: AppSettings) -> dict:
     doc_id = uuid.uuid4().hex
     pieces = chunk_blocks(extract(filename, payload), chunk_size, overlap)
-    vectors = await create_embeddings(settings, [piece["content"] for piece in pieces])
+    vectors = await create_embeddings(
+        settings,
+        [document_embedding_text(filename, piece.get("section"), piece["content"]) for piece in pieces],
+    )
     now = datetime.now(timezone.utc).isoformat()
     with database.connect() as db:
         db.execute(

@@ -67,6 +67,7 @@ class QueryAnalysis(BaseModel):
     entities: list[str]
     numbers: list[str]
     temporal_terms: list[str]
+    keywords: list[str] = Field(default_factory=list)
 
 
 class ChatResponse(BaseModel):

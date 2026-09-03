@@ -10,6 +10,7 @@ AdaptiveMetric RAG is a self-hosted, multilingual knowledge assistant that chang
 
 - Adaptive query analyzer with factual, conceptual, causal, numeric, temporal, and technical/code intents
 - Per-query mixture of dense, BM25, entity, numeric, temporal, and metadata scores
+- Multilingual multi-keyword expansion with blended query vectors for cross-language retrieval
 - Three-stage flow: fast candidate selection → adaptive scoring → grounded generation
 - Confidence scoring and early-exit signals
 - PDF, DOCX, TXT, Markdown, CSV, JSON, and HTML ingestion
@@ -43,6 +44,8 @@ Query → Query Analyzer → Metric Router
 ```
 
 The built-in embedding uses deterministic 384-dimensional multilingual feature hashing. It starts instantly, runs offline, and is appropriate for small and medium personal knowledge bases. The retrieval layer is isolated in `app/retrieval.py`, making it straightforward to replace candidate selection with Qdrant or FAISS for million-chunk deployments while retaining the adaptive scoring layer.
+
+For higher multilingual accuracy, select `bge-m3` from Ollama. Document vectors include the filename, section, and chunk content; query vectors blend the original question with compact Persian/English keyword-expanded variants.
 
 ## Quick start with Docker
 

@@ -10,6 +10,7 @@ AdaptiveMetric RAG یک دستیار دانش self-hosted و چندزبانه ا
 
 - Query Analyzer برای intentهای factual، conceptual، causal، numeric، temporal و technical/code
 - ترکیب پویا از Dense، BM25، Entity، Number، Time و Metadata
+- جستجوی چندکلیدواژه‌ای فارسی/انگلیسی و ترکیب چند بردار Query برای retrieval بین‌زبانی
 - مسیر سه‌مرحله‌ای candidate retrieval، adaptive scoring و grounded generation
 - confidence score و سیگنال early exit
 - پشتیبانی از PDF، DOCX، TXT، Markdown، CSV، JSON و HTML
@@ -43,6 +44,8 @@ Query → Query Analyzer → Metric Router
 ```
 
 Embedding داخلی یک feature hashing چندزبانه و قطعی با ۳۸۴ بُعد است. بدون دانلود مدل، آفلاین و فوری اجرا می‌شود و برای knowledge baseهای شخصی کوچک و متوسط مناسب است. برای مقیاس چند میلیون chunk می‌توانید candidate selection در `app/retrieval.py` را با FAISS یا Qdrant جایگزین کنید و adaptive scoring را روی Top 50–200 نگه دارید.
+
+برای دقت چندزبانه بالاتر، مدل `bge-m3` در Ollama پیشنهاد می‌شود. embedding هر chunk از نام فایل، section و متن ساخته می‌شود و بردار Query نیز ترکیبی از سؤال اصلی و کلیدواژه‌های گسترش‌یافته فارسی/انگلیسی است.
 
 ## اجرای سریع با Docker
 

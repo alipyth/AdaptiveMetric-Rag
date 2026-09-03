@@ -1,5 +1,5 @@
 from app.documents import chunk_blocks
-from app.retrieval import analyze_query, best_evidence, cosine, embed
+from app.retrieval import analyze_query, best_evidence, cosine, embed, expanded_keywords, normalize_query, query_variants
 
 
 def test_temporal_router_prioritizes_time():
@@ -19,6 +19,23 @@ def test_book_topic_query_is_conceptual():
     result = analyze_query("موضوع کتاب چیه؟")
     assert result.intent == "conceptual"
     assert result.weights["dense"] == max(result.weights.values())
+
+
+def test_document_browse_intent_and_multilingual_keywords():
+    result = analyze_query("از متن کتاب برام بنویس")
+    assert result.intent == "document_browse"
+    assert "book" in result.keywords
+    assert "text" in result.keywords
+    assert len(query_variants("از متن کتاب برام بنویس")) > 1
+
+
+def test_conversational_creativity_queries_normalize_consistently():
+    assert normalize_query("خوب چطوری خلاق باشیم؟") == "چطور خلاق باشیم؟"
+    first = analyze_query("خوب چطوری خلاق باشیم؟")
+    second = analyze_query("چطور خلاق باشیم؟")
+    assert first.intent == second.intent == "conceptual"
+    assert first.keywords == second.keywords
+    assert "creativity" in first.keywords
 
 
 def test_embedding_is_deterministic_and_normalized():
