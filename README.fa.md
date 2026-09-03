@@ -50,7 +50,7 @@ Embedding داخلی یک feature hashing چندزبانه و قطعی با ۳۸
 ## اجرای سریع با Docker
 
 ```bash
-git clone <your-repository-url>
+git clone https://github.com/alipyth/AdaptiveMetric-Rag
 cd AdaptiveMetric-RAG
 docker compose up --build -d
 ```
