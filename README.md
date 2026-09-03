@@ -50,7 +50,7 @@ For higher multilingual accuracy, select `bge-m3` from Ollama. Document vectors 
 ## Quick start with Docker
 
 ```bash
-git clone <your-repository-url>
+git clone https://github.com/alipyth/AdaptiveMetric-Rag
 cd AdaptiveMetric-RAG
 docker compose up --build -d
 ```
